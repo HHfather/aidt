@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { useRef } from 'react'
 import toast from 'react-hot-toast'
+import { db, storage } from '../firebaseConfig'
+import { collection, addDoc } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { compressImage, formatFileSize } from '../utils/imageCompressor'
 
 export default function UnifiedMealsGallery() {
@@ -89,22 +92,36 @@ export default function UnifiedMealsGallery() {
         toast.success(`${compressedFile.name}: ${formatFileSize(selectedFile.size)} → ${formatFileSize(compressedFile.size)} (${compressionRatio}% 압축)`);
       }
       
-      const formData = new FormData()
-      formData.append('image', compressedFile)
-      formData.append('userData', JSON.stringify(user))
-      formData.append('mealType', mealType)
-      formData.append('mealDate', mealDate)
-      formData.append('location', location)
-      formData.append('description', description)
-
-      const response = await fetch('/api/unified-meals-gallery', {
-        method: 'POST',
-        body: formData
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
+      try {
+        // Firebase Storage에 직접 업로드
+        const storageRef = ref(storage, `unified-meals-gallery/${Date.now()}_${compressedFile.name}`);
+        const snapshot = await uploadBytes(storageRef, compressedFile);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        console.log(`파일 ${compressedFile.name} Storage 업로드 완료:`, downloadURL);
+        
+        // Firestore에 메타데이터 저장
+        const imageData = {
+          imageUrl: downloadURL,
+          fileName: compressedFile.name,
+          uploadedBy: {
+            id: user.id,
+            name: user.name,
+            region: user.region
+          },
+          uploadedAt: new Date().toISOString(),
+          mealType: mealType || '기타',
+          mealDate: mealDate || new Date().toISOString().split('T')[0],
+          location: location || '',
+          type: 'unified-meals',
+          description: description || '',
+          comments: [],
+          emojis: {},
+        };
+        
+        const docRef = await addDoc(collection(db, 'unified-meals-gallery'), imageData);
+        console.log(`파일 ${compressedFile.name} Firestore 저장 완료:`, docRef.id);
+        
         toast.success('사진이 성공적으로 업로드되었습니다!')
         setSelectedFile(null)
         setDescription('')
@@ -113,9 +130,12 @@ export default function UnifiedMealsGallery() {
           fileInputRef.current.value = ''
         }
         loadPhotos() // 사진 목록 새로고침
-      } else {
-        toast.error(data.error || '업로드 중 오류가 발생했습니다.')
+        
+      } catch (error) {
+        console.error(`파일 ${compressedFile.name} 업로드 실패:`, error);
+        throw new Error(`Failed to upload ${compressedFile.name}: ${error.message}`);
       }
+      
     } catch (error) {
       console.error('업로드 오류:', error)
       toast.error('업로드 중 오류가 발생했습니다.')

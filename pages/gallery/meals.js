@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
-import { compressImages, formatFileSize, imageToBase64 } from '../../utils/imageCompressor';
+import { db, storage } from '../../firebaseConfig';
+import { collection, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { compressImages, formatFileSize } from '../../utils/imageCompressor';
 
 export default function MealsGallery() {
   const router = useRouter();
@@ -144,40 +147,49 @@ export default function MealsGallery() {
       
       // 첫 번째 파일만 업로드 (다중 파일 업로드는 나중에 구현)
       const file = compressedFiles[0];
-      const base64Data = await imageToBase64(file);
       
-      const uploadData = {
-        type: 'meal',
-        date: uploadDate,
-        region: region,
-        mealType: selectedMealType,
-        description: description,
-        userData: JSON.stringify(user),
-        fileName: file.name,
-        fileSize: file.size,
-        imageData: base64Data
-      };
-
-      const response = await fetch('/api/gallery-upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(uploadData)
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
+      try {
+        // Firebase Storage에 직접 업로드
+        const storageRef = ref(storage, `meal-gallery/${region}/${uploadDate}/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        console.log(`파일 ${file.name} Storage 업로드 완료:`, downloadURL);
+        
+        // Firestore에 메타데이터 저장
+        const imageData = {
+          imageUrl: downloadURL,
+          fileName: file.name,
+          uploadedBy: {
+            id: user.id,
+            name: user.name,
+            affiliation: user.affiliation
+          },
+          uploadedAt: new Date().toISOString(),
+          date: uploadDate,
+          region: region,
+          mealType: selectedMealType,
+          type: 'meal',
+          description: description,
+          comments: [],
+          emojis: {},
+        };
+        
+        const docRef = await addDoc(collection(db, 'gallery'), imageData);
+        console.log(`파일 ${file.name} Firestore 저장 완료:`, docRef.id);
+        
         toast.success(`📸 ${selectedMealType} 사진 ${compressedFiles.length}장이 성공적으로 업로드되었습니다!`);
         setSelectedFiles([]);
         setDescription('');
         setSelectedMealType('');
         setShowUploadModal(false);
         loadMealsImages(); // 갤러리 새로고침
-      } else {
-        throw new Error(result.error || '업로드 실패');
+        
+      } catch (error) {
+        console.error(`파일 ${file.name} 업로드 실패:`, error);
+        throw new Error(`Failed to upload ${file.name}: ${error.message}`);
       }
+      
     } catch (error) {
       console.error('업로드 오류:', error);
       toast.error('업로드 중 오류가 발생했습니다.');
