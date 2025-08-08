@@ -44,7 +44,7 @@ const getField = (fields, fieldName) => {
 
 export default async function handler(req, res) {
   const form = new IncomingForm({
-    maxFileSize: 4 * 1024 * 1024, // 4MB (Vercel 제한)
+    maxFileSize: 10 * 1024 * 1024, // 10MB로 증가 (클라이언트에서 4MB로 압축하므로 여유있게 설정)
     maxFields: 10,
     allowEmptyFiles: false,
   });
@@ -83,6 +83,13 @@ export default async function handler(req, res) {
         if (!uploadedFile || !uploadedFile.filepath) {
             console.error('[ERROR] File not provided or invalid:', { uploadedFile, fileKeys: Object.keys(uploadedFile || {}) });
             return res.status(400).json({ success: false, error: 'File not provided.' });
+        }
+        
+        // 파일 크기 검증 (10MB 제한)
+        const maxFileSize = 10 * 1024 * 1024; // 10MB
+        if (uploadedFile.size > maxFileSize) {
+            console.error('[ERROR] File too large:', { size: uploadedFile.size, maxSize: maxFileSize });
+            return res.status(413).json({ success: false, error: 'File too large. Maximum size is 10MB.' });
         }
         
         console.log('Step 1: Extracted uploadedFile successfully.', { originalFilename: uploadedFile.originalFilename, size: uploadedFile.size });

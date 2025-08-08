@@ -48,7 +48,11 @@ export default function handler(req, res) {
       }
       resolve();
     } else if (req.method === 'POST') {
-      const form = new IncomingForm();
+      const form = new IncomingForm({
+        maxFileSize: 10 * 1024 * 1024, // 10MB로 증가
+        maxFields: 10,
+        allowEmptyFiles: false,
+      });
 
       form.parse(req, async (err, fields, files) => {
         if (err) {
@@ -61,6 +65,14 @@ export default function handler(req, res) {
           const uploadedFile = Array.isArray(files.image) ? files.image[0] : files.image;
           if (!uploadedFile) {
             res.status(400).json({ success: false, error: 'File not provided.' });
+            return resolve();
+          }
+
+          // 파일 크기 검증 (10MB 제한)
+          const maxFileSize = 10 * 1024 * 1024; // 10MB
+          if (uploadedFile.size > maxFileSize) {
+            console.error('[ERROR] File too large:', { size: uploadedFile.size, maxSize: maxFileSize });
+            res.status(413).json({ success: false, error: 'File too large. Maximum size is 10MB.' });
             return resolve();
           }
 
