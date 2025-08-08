@@ -47,6 +47,9 @@ export default function AdminDashboard() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState('1');
+  // 피드백 관리
+  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [feedbackFilter, setFeedbackFilter] = useState({ category: 'all', status: 'open', region: 'all' });
 
   useEffect(() => {
     const adminData = sessionStorage.getItem('adminSession') || localStorage.getItem('adminSession');
@@ -61,6 +64,7 @@ export default function AdminDashboard() {
         await loadParticipants();
         setLoadingProgress(70);
         await loadSchedules();
+        await loadFeedback();
         setLoadingProgress(100);
         setTimeout(() => setLoading(false), 500); // 로딩 완료 후 잠시 대기
       };
@@ -442,6 +446,39 @@ export default function AdminDashboard() {
     router.push('/');
   };
 
+  // 피드백 로드
+  const loadFeedback = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (feedbackFilter.category !== 'all') params.set('category', feedbackFilter.category);
+      if (feedbackFilter.status !== 'all') params.set('status', feedbackFilter.status);
+      if (feedbackFilter.region !== 'all') params.set('region', feedbackFilter.region);
+      const res = await fetch(`/api/feedback?${params.toString()}`);
+      const result = await res.json();
+      if (res.ok && result.success) {
+        setFeedbackItems(result.data);
+      } else {
+        setFeedbackItems([]);
+      }
+    } catch (e) {
+      setFeedbackItems([]);
+    }
+  };
+
+  const updateFeedback = async (id, updates) => {
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates })
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        await loadFeedback();
+      }
+    } catch (e) {}
+  };
+
   const handleInitializeFirebase = async () => {
     const loadingToast = toast.loading('Firebase 초기화 중...');
     const result = await initializeFirebaseData();
@@ -523,6 +560,7 @@ export default function AdminDashboard() {
           <button onClick={() => router.push('/admin/file-manager')} className={`py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500`}>📄 계획서/참가자 등록</button>
           <button onClick={() => setActiveTab('participants')} className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'participants' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>👥 참가자 명단</button>
           <button onClick={() => setActiveTab('schedules')} className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'schedules' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>📅 일정 관리</button>
+          <button onClick={() => setActiveTab('feedback')} className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'feedback' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>📝 피드백 관리</button>
           <button onClick={() => router.push('/admin/report-generator')} className={`py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500`}>**(미구현)** 최종보고서 생성</button>
         </nav>
 
@@ -820,6 +858,57 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+          {/* 피드백 관리 탭 */}
+          {activeTab === 'feedback' && (
+            <div className="mb-8 bg-white shadow rounded-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">📝 피드백 관리</h2>
+              <div className="flex flex-wrap gap-4 mb-4">
+                <select value={feedbackFilter.category} onChange={(e)=> setFeedbackFilter(prev=>({...prev, category: e.target.value}))} className="px-3 py-2 border rounded-md">
+                  <option value="all">전체 분류</option>
+                  <option value="기능개선">기능개선</option>
+                  <option value="버그신고">버그신고</option>
+                  <option value="문의">문의</option>
+                  <option value="칭찬/응원">칭찬/응원</option>
+                </select>
+                <select value={feedbackFilter.status} onChange={(e)=> setFeedbackFilter(prev=>({...prev, status: e.target.value}))} className="px-3 py-2 border rounded-md">
+                  <option value="all">전체 상태</option>
+                  <option value="open">열림</option>
+                  <option value="resolved">처리완료</option>
+                </select>
+                <select value={feedbackFilter.region} onChange={(e)=> setFeedbackFilter(prev=>({...prev, region: e.target.value}))} className="px-3 py-2 border rounded-md">
+                  <option value="all">모든 권역</option>
+                  {regions.map(r => <option key={r} value={r}>{r}권역</option>)}
+                </select>
+                <button onClick={loadFeedback} className="px-4 py-2 bg-blue-600 text-white rounded-md">조회</button>
+              </div>
+              {feedbackItems.length === 0 ? (
+                <div className="text-center py-10 text-gray-500">피드백이 없습니다.</div>
+              ) : (
+                <div className="space-y-3">
+                  {feedbackItems.map(item => (
+                    <div key={item.id} className={`border rounded-lg p-4 ${item.status === 'resolved' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="space-x-2">
+                          <span className="px-2 py-1 text-xs rounded bg-gray-100">{item.category}</span>
+                          <span className="px-2 py-1 text-xs rounded bg-yellow-100">{item.priority || '보통'}</span>
+                          {item.region && <span className="px-2 py-1 text-xs rounded bg-blue-100">{item.region}권역</span>}
+                        </div>
+                        <div className="text-xs text-gray-500">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</div>
+                      </div>
+                      {item.contact && <div className="text-sm text-gray-600 mb-2">👤 {item.contact}</div>}
+                      <div className="whitespace-pre-wrap text-gray-800 mb-3">{item.content}</div>
+                      <div className="flex gap-2 justify-end">
+                        {item.status !== 'resolved' && (
+                          <button onClick={()=>updateFeedback(item.id, { status: 'resolved' })} className="px-3 py-1 bg-green-600 text-white rounded">처리완료</button>
+                        )}
+                        <button onClick={()=>updateFeedback(item.id, { archived: true })} className="px-3 py-1 bg-gray-600 text-white rounded">제외</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import AnnouncementsTab from '../components/AnnouncementsTab'
 import PhotosTab from '../components/PhotosTab'
 import ScheduleTab from '../components/ScheduleTab'
+import FeedbackTab from '../components/FeedbackTab'
 import ParticipantsTab from '../components/ParticipantsTab'
 
 export default function Dashboard() {
@@ -306,7 +307,8 @@ export default function Dashboard() {
                   { id: 'photos', name: '베스트 포토', icon: '📸' },
                   { id: 'announcements', name: '공지사항 및 오늘의 일정', icon: '📢' },
                   { id: 'schedule', name: '전체 연수 일정', icon: '📅' },
-                  { id: 'participants', name: '함께하는 분들', icon: '👥' }
+                  { id: 'participants', name: '함께하는 분들', icon: '👥' },
+                  { id: 'feedback', name: '피드백 보내기', icon: '📝' }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -346,6 +348,10 @@ export default function Dashboard() {
             <ParticipantsTab 
               participants={participants}
             />
+          )}
+
+          {activeTab === 'feedback' && (
+            <FeedbackTab />
           )}
 
         </div>
