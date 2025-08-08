@@ -99,7 +99,7 @@ export default function ParticipantsTab({ participants: initialParticipants }) {
                   <span className="text-2xl">{getPositionIcon(participant.position)}</span>
                   <h3 className="font-semibold text-gray-900 text-lg">{participant.name}</h3>
                 </div>
-                <p className="text-sm text-gray-600 mb-1">{participant.position || '직책 미정'}</p>
+                <p className="text-sm text-gray-600 mb-1">{participant.position || ''}</p>
                 <p className="text-sm text-gray-600 mb-2">{participant.affiliation}</p>
                 <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${getRegionColor(participant.region)}`}>
                   {participant.region}권역
@@ -138,7 +138,7 @@ export default function ParticipantsTab({ participants: initialParticipants }) {
                           <span className="text-2xl">{getPositionIcon(participant.position)}</span>
                           <h4 className="font-semibold text-gray-900">{participant.name}</h4>
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">{participant.position || '직책 미정'}</p>
+                        <p className="text-sm text-gray-600 mb-1">{participant.position || ''}</p>
                         <p className="text-sm text-gray-600">{participant.affiliation}</p>
                       </div>
                     </div>
@@ -178,7 +178,7 @@ export default function ParticipantsTab({ participants: initialParticipants }) {
                           <span className="text-2xl">{getPositionIcon(participant.position)}</span>
                           <h4 className="font-semibold text-gray-900">{participant.name}</h4>
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">{participant.position || '직책 미정'}</p>
+                        <p className="text-sm text-gray-600 mb-1">{participant.position || ''}</p>
                         <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${getRegionColor(participant.region)}`}>
                           {participant.region}권역
                         </span>
@@ -214,17 +214,12 @@ export default function ParticipantsTab({ participants: initialParticipants }) {
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">👥 함께하시는 분들</h2>
+          <h2 className="text-2xl font-bold text-gray-900">👥 참가자</h2>
           <p className="text-gray-600 mt-1">
             총 {allParticipants.length}명의 참가자, {participantsByRegion ? Object.keys(participantsByRegion).length : 0}개 권역
           </p>
         </div>
-        <button
-          onClick={loadAllParticipants}
-          className="mt-4 md:mt-0 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          🔄 새로고침
-        </button>
+
       </div>
 
       {/* 검색 및 필터 */}

@@ -89,7 +89,8 @@ export default function Dashboard() {
       }
       
       const userData = JSON.parse(userSession)
-      const region = userData.region || userData.affiliation?.replace(/[^0-9]/g, '') || '1'
+      const rawRegion = userData.region || userData.affiliation?.replace(/[^0-9]/g, '') || '1'
+      const region = (rawRegion?.toString().match(/\d+/) || ['1'])[0]
       
       // 가이드 일정 관리에서 일정 데이터 가져오기
       const response = await fetch(`/api/schedule-management?region=${region}`)
@@ -169,7 +170,8 @@ export default function Dashboard() {
       }
       
       const userData = JSON.parse(userSession)
-      const region = userData.region || userData.affiliation?.replace(/[^0-9]/g, '') || '1'
+      const rawRegion = userData.region || userData.affiliation?.replace(/[^0-9]/g, '') || '1'
+      const region = (rawRegion?.toString().match(/\d+/) || ['1'])[0]
       
       // 공지사항 API에서 데이터 가져오기
       const response = await fetch(`/api/announcements?region=${region}`)
@@ -221,7 +223,8 @@ export default function Dashboard() {
       }
       
       const userData = JSON.parse(userSession)
-      const region = userData.region || userData.affiliation?.replace(/[^0-9]/g, '') || '1'
+      const rawRegion = userData.region || userData.affiliation?.replace(/[^0-9]/g, '') || '1'
+      const region = (rawRegion?.toString().match(/\d+/) || ['1'])[0]
       
       // 참가자 관리에서 데이터 가져오기 (참가자 관리가 불러오는 값 그대로 사용)
       const response = await fetch(`/api/participants?region=${region}`)
@@ -305,10 +308,10 @@ export default function Dashboard() {
               <nav className="-mb-px flex space-x-8">
                 {[
                   { id: 'photos', name: '베스트 포토', icon: '📸' },
-                  { id: 'announcements', name: '공지사항 및 오늘의 일정', icon: '📢' },
-                  { id: 'schedule', name: '전체 연수 일정', icon: '📅' },
-                  { id: 'participants', name: '함께하는 분들', icon: '👥' },
-                  { id: 'feedback', name: '피드백 보내기', icon: '📝' }
+                  { id: 'announcements', name: '공지사항', icon: '📢' },
+                  { id: 'schedule', name: '연수 일정', icon: '📅' },
+                  { id: 'participants', name: '참가자', icon: '👥' },
+                  { id: 'feedback', name: '피드백', icon: '📝' }
                 ].map((tab) => (
                   <button
                     key={tab.id}

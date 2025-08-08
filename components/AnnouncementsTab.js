@@ -259,9 +259,8 @@ export default function AnnouncementsTab({ announcements, schedules, formatDate 
           categorizedSchedules.push(freeTimeSchedule);
         }
 
-        // 이동시간 정보 추가
-        const schedulesWithTravel = addTravelTimes(categorizedSchedules);
-        setTodaySchedules(schedulesWithTravel);
+        // 이동시간 정보 제거 - 단순화
+        setTodaySchedules(categorizedSchedules);
       }
     } catch (error) {
       console.error('오늘의 일정 로드 오류:', error);
@@ -516,15 +515,10 @@ export default function AnnouncementsTab({ announcements, schedules, formatDate 
                 onClick={() => router.push(`/activity/${todaySchedules.find(s => !s.isMeal && !s.isTravel && !s.isFreeTime)?.id || '1'}`)}
                 className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
               >
-                📅 연수 일정 갤러리
+                📅 연수 갤러리
               </button>
               
-              <button
-                onClick={() => loadTodaySchedules(userRegion)}
-                className="px-3 py-1 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors"
-              >
-                🔄 새로고침
-              </button>
+
             </div>
           </div>
         </div>

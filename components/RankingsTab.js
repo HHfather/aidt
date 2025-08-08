@@ -9,12 +9,7 @@ export default function RankingsTab({ user, userStats, rankings, onRefreshRankin
           <h2 className="text-xl font-semibold flex items-center">
             🌟 {user?.name}님의 활동 점수
           </h2>
-          <button
-            onClick={onRefreshRankings}
-            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-full text-sm transition-all"
-          >
-            🔄 새로고침
-          </button>
+
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">

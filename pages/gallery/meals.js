@@ -537,12 +537,7 @@ export default function MealsGallery() {
                 <h2 className="text-xl font-bold text-gray-900">📍 AI 방문장소 가이드</h2>
                 <p className="text-gray-600">AI가 분석한 상세한 장소 정보와 방문 팁을 확인해보세요</p>
               </div>
-                <button
-                  onClick={loadMealsImages}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors"
-                >
-                  🔄 새로고침
-                </button>
+
               </div>
               
               <div className="space-y-4">
@@ -652,12 +647,6 @@ export default function MealsGallery() {
                 <p className="text-gray-600">날짜별, 식사별로 정리된 사진들을 확인해보세요</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={loadMealsImages}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors"
-                >
-                  🔄 새로고침
-                </button>
                 {/* 조식 전체 삭제 버튼 */}
                 <button
                   onClick={handleDeleteBreakfast}
