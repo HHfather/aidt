@@ -79,7 +79,9 @@ export default function AdminDashboard() {
       const result = await response.json();
       
       if (result.success) {
-        setRegionAnnouncements(result.data);
+        // 최신순 정렬 보장
+        const sorted = [...result.data].sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+        setRegionAnnouncements(sorted);
       } else {
         toast.error('공지사항을 불러오는데 실패했습니다.');
       }

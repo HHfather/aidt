@@ -25,6 +25,7 @@ export default async function handler(req, res) {
           id: doc.id,
           title: data.title || '공지사항',
           content: data.content,
+          region: data.region || '전체',
           date: data.date || (data.createdAt ? new Date(data.createdAt.toDate()).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
           time: data.time || (data.createdAt ? new Date(data.createdAt.toDate()).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })),
           createdBy: data.createdBy || data.author || '관리자',
