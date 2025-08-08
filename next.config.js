@@ -27,7 +27,7 @@ const nextConfig = {
   // API 요청 크기 제한 설정
   api: {
     bodyParser: {
-      sizeLimit: '10mb',
+      sizeLimit: '4mb',
     },
     responseLimit: false,
   },

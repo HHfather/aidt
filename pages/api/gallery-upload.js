@@ -8,6 +8,7 @@ export const config = {
   api: {
     bodyParser: false,
     responseLimit: false,
+    maxDuration: 60,
   },
 };
 
@@ -43,7 +44,7 @@ const getField = (fields, fieldName) => {
 
 export default async function handler(req, res) {
   const form = new IncomingForm({
-    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFileSize: 4 * 1024 * 1024, // 4MB (Vercel 제한)
     maxFields: 10,
     allowEmptyFiles: false,
   });

@@ -5,7 +5,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '10mb',
+      sizeLimit: '4mb',
     },
     responseLimit: false,
   },

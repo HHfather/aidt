@@ -511,12 +511,25 @@ export default function AnnouncementsTab({ announcements, schedules, formatDate 
                 🍽️ 식사 갤러리
               </button>
               
-              <button
-                onClick={() => router.push(`/activity/${todaySchedules.find(s => !s.isMeal && !s.isTravel && !s.isFreeTime)?.id || '1'}`)}
-                className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
-              >
-                📅 연수 갤러리
-              </button>
+              {/* 연수 일정이 있을 때만 갤러리 버튼 표시 */}
+              {todaySchedules.some(s => !s.isMeal && !s.isTravel && !s.isFreeTime) && (
+                <button
+                  onClick={() => router.push(`/activity/${todaySchedules.find(s => !s.isMeal && !s.isTravel && !s.isFreeTime)?.id || '1'}`)}
+                  className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+                >
+                  📅 연수 갤러리
+                </button>
+              )}
+              
+              {/* 연수 일정이 있을 때만 갤러리 버튼 표시 */}
+              {todaySchedules.some(s => !s.isMeal && !s.isTravel && !s.isFreeTime) && (
+                <button
+                  onClick={() => router.push(`/activity/${todaySchedules.find(s => !s.isMeal && !s.isTravel && !s.isFreeTime)?.id || '1'}`)}
+                  className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors"
+                >
+                  📸 연수 일정 갤러리
+                </button>
+              )}
               
 
             </div>

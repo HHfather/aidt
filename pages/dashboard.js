@@ -24,19 +24,12 @@ export default function Dashboard() {
   const [project, setProject] = useState(null)
   const [schedules, setSchedules] = useState([])
   const [announcements, setAnnouncements] = useState([])
-  const [participants, setParticipants] = useState([])
-  const [rankings, setRankings] = useState([])
+
+
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('photos') // 기본 탭을 공지사항으로 설정
+  const [activeTab, setActiveTab] = useState('announcements') // 기본 탭을 공지사항으로 설정
   
-  // 사용자 통계
-  const [userStats, setUserStats] = useState({
-    totalScore: 0,
-    rank: 0,
-    commentsAdded: 0,
-    photosAdded: 0,
-    emojisAdded: 0
-  })
+
 
   useEffect(() => {
     // 사용자 세션 확인
@@ -65,8 +58,7 @@ export default function Dashboard() {
       // 공지사항 로드
       await loadAnnouncements(projectId)
       
-      // 참가자 목록 로드
-      await loadParticipants(projectId)
+
       
 
       
@@ -212,43 +204,7 @@ export default function Dashboard() {
     }
   }
 
-  const loadParticipants = async (projectId) => {
-    try {
-      // 사용자 세션에서 권역 정보 가져오기
-      const userSession = localStorage.getItem('userSession')
-      if (!userSession) {
-        console.log('사용자 세션 없음')
-        setParticipants([])
-        return
-      }
-      
-      const userData = JSON.parse(userSession)
-      const rawRegion = userData.region || userData.affiliation?.replace(/[^0-9]/g, '') || '1'
-      const region = (rawRegion?.toString().match(/\d+/) || ['1'])[0]
-      
-      // 참가자 관리에서 데이터 가져오기 (참가자 관리가 불러오는 값 그대로 사용)
-      const response = await fetch(`/api/participants?region=${region}`)
-      const result = await response.json()
-      
-      if (result.success && result.data && result.data.length > 0) {
-        // 참가자 데이터를 가나다순으로 정렬 (부재자 제외)
-        const activeParticipants = result.data.filter(participant => 
-          !participant.name?.includes('부재') && 
-          !participant.affiliation?.includes('부재')
-        )
-        
-        const sortedParticipants = activeParticipants.sort((a, b) => 
-          a.name.localeCompare(b.name, 'ko')
-        )
-        setParticipants(sortedParticipants)
-      } else {
-        setParticipants([])
-      }
-    } catch (error) {
-      console.log('참가자 로드 실패:', error)
-      setParticipants([])
-    }
-  }
+
 
 
 
@@ -307,11 +263,8 @@ export default function Dashboard() {
             <div className="border-b border-gray-200">
               <nav className="-mb-px flex space-x-8">
                 {[
-                  { id: 'photos', name: '베스트 포토', icon: '📸' },
-                  { id: 'announcements', name: '공지사항', icon: '📢' },
-                  { id: 'schedule', name: '연수 일정', icon: '📅' },
-                  { id: 'participants', name: '참가자', icon: '👥' },
-                  { id: 'feedback', name: '피드백', icon: '📝' }
+                  { id: 'announcements', name: '공지+오늘', icon: '📢' },
+                  { id: 'schedule', name: '전체 일정', icon: '📅' }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -330,9 +283,6 @@ export default function Dashboard() {
           </div>
 
           {/* 탭 내용 */}
-
-          {activeTab === 'photos' && <PhotosTab />}
-
           {activeTab === 'announcements' && (
             <AnnouncementsTab 
               announcements={announcements}
@@ -345,16 +295,6 @@ export default function Dashboard() {
             <ScheduleTab 
               projectId={project?.id}
             />
-          )}
-
-          {activeTab === 'participants' && (
-            <ParticipantsTab 
-              participants={participants}
-            />
-          )}
-
-          {activeTab === 'feedback' && (
-            <FeedbackTab />
           )}
 
         </div>

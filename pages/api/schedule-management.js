@@ -6,20 +6,31 @@ export default async function handler(req, res) {
     try {
       const { region, date } = req.query;
       
-      if (!region || !date) {
+      if (!region) {
         return res.status(400).json({ 
           success: false, 
-          error: 'region과 date 파라미터가 필요합니다.' 
+          error: 'region 파라미터가 필요합니다.' 
         });
       }
 
       // 스케줄 조회
       const schedulesRef = collection(db, 'schedules');
-      const schedulesQuery = query(
-        schedulesRef,
-        where('region', '==', region),
-        where('date', '==', date)
-      );
+      let schedulesQuery;
+      
+      if (date) {
+        // 특정 날짜의 스케줄 조회
+        schedulesQuery = query(
+          schedulesRef,
+          where('region', '==', region),
+          where('date', '==', date)
+        );
+      } else {
+        // 해당 권역의 모든 스케줄 조회
+        schedulesQuery = query(
+          schedulesRef,
+          where('region', '==', region)
+        );
+      }
       
       const schedulesSnapshot = await getDocs(schedulesQuery);
       const schedules = [];
@@ -41,9 +52,20 @@ export default async function handler(req, res) {
         }
       });
       
+      // 날짜별로 그룹화
+      const activitiesByDate = {};
+      schedules.forEach(schedule => {
+        const dateKey = schedule.date;
+        if (!activitiesByDate[dateKey]) {
+          activitiesByDate[dateKey] = [];
+        }
+        activitiesByDate[dateKey].push(schedule);
+      });
+
       res.status(200).json({
         success: true,
         schedules: schedules,
+        activities: activitiesByDate,
         message: '스케줄 데이터를 성공적으로 조회했습니다.'
       });
 

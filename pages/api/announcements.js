@@ -10,10 +10,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Region parameter is required' })
       }
 
-      // 공지사항 쿼리 (orderBy 제거하여 인덱스 오류 방지)
+      // 모든 공지사항을 가져와서 클라이언트에서 필터링
       const announcementsQuery = query(
-        collection(db, 'announcements'),
-        where('region', '==', region)
+        collection(db, 'announcements')
       )
 
       const snapshot = await getDocs(announcementsQuery)
@@ -21,16 +20,21 @@ export default async function handler(req, res) {
 
       snapshot.forEach((doc) => {
         const data = doc.data()
-        announcements.push({
-          id: doc.id,
-          title: data.title || '공지사항',
-          content: data.content,
-          region: data.region || '전체',
-          date: data.date || (data.createdAt ? new Date(data.createdAt.toDate()).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
-          time: data.time || (data.createdAt ? new Date(data.createdAt.toDate()).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })),
-          createdBy: data.createdBy || data.author || '관리자',
-          urgentLevel: data.urgentLevel || 'normal'
-        })
+        const announcementRegion = data.region || '전체'
+        
+        // 해당 권역이거나 전체 공지사항인 경우만 포함
+        if (announcementRegion === region || announcementRegion === '전체' || announcementRegion === 'all') {
+          announcements.push({
+            id: doc.id,
+            title: data.title || '공지사항',
+            content: data.content,
+            region: announcementRegion,
+            date: data.date || (data.createdAt ? new Date(data.createdAt.toDate()).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+            time: data.time || (data.createdAt ? new Date(data.createdAt.toDate()).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })),
+            createdBy: data.createdBy || data.author || '관리자',
+            urgentLevel: data.urgentLevel || 'normal'
+          })
+        }
       })
 
       // 클라이언트에서 날짜순 정렬
