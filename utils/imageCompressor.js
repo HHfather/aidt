@@ -3,6 +3,20 @@
  * 클라이언트 사이드에서 이미지를 4MB 이하로 압축하는 기능
  */
 
+// 이미지를 Base64로 인코딩하는 함수
+export const imageToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(reader.result);
+    };
+    reader.onerror = () => {
+      reject(new Error('이미지를 Base64로 변환하는데 실패했습니다.'));
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 // 이미지 압축 함수
 export const compressImage = (file, maxSizeMB = 4, quality = 0.8) => {
   return new Promise((resolve, reject) => {

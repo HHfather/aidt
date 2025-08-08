@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
-import { compressImages, formatFileSize } from '../../utils/imageCompressor';
+import { compressImages, formatFileSize, imageToBase64 } from '../../utils/imageCompressor';
 
 export default function MealsGallery() {
   const router = useRouter();
@@ -142,20 +142,28 @@ export default function MealsGallery() {
         }
       });
       
-      const formData = new FormData();
-      compressedFiles.forEach(file => {
-        formData.append('images', file);
-      });
-      formData.append('description', description);
-      formData.append('region', region);
-      formData.append('date', uploadDate);
-      formData.append('mealType', selectedMealType);
-      formData.append('type', 'meal');
-      formData.append('userData', JSON.stringify(user));
+      // 첫 번째 파일만 업로드 (다중 파일 업로드는 나중에 구현)
+      const file = compressedFiles[0];
+      const base64Data = await imageToBase64(file);
+      
+      const uploadData = {
+        type: 'meal',
+        date: uploadDate,
+        region: region,
+        mealType: selectedMealType,
+        description: description,
+        userData: JSON.stringify(user),
+        fileName: file.name,
+        fileSize: file.size,
+        imageData: base64Data
+      };
 
       const response = await fetch('/api/gallery-upload', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(uploadData)
       });
 
       const result = await response.json();

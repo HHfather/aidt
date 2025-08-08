@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import { Toaster, toast } from 'react-hot-toast'
 import { db } from '../../firebaseConfig'
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy, updateDoc } from 'firebase/firestore'
-import { compressImages, formatFileSize } from '../../utils/imageCompressor'
+import { compressImages, formatFileSize, imageToBase64 } from '../../utils/imageCompressor'
 
 
 export default function ScheduleGallery() {
@@ -319,42 +319,49 @@ export default function ScheduleGallery() {
       const uploadPromises = compressedFiles.map(async (file, index) => {
         console.log(`파일 ${index + 1} 업로드 시작:`, file.name, `크기: ${formatFileSize(file.size)}`)
         
-        // FormData를 사용하여 파일 업로드
-        const formData = new FormData()
-        formData.append('images', file) // 'images' 필드명으로 통일
-        formData.append('type', 'schedule') // 'schedule' 타입 명시
-        formData.append('scheduleId', scheduleId)
-        formData.append('date', schedule.date)
-        formData.append('location', schedule.location)
-        formData.append('activity', schedule.activity)
-        formData.append('userData', JSON.stringify(userData))
-        formData.append('fileName', file.name)
-        formData.append('fileSize', file.size)
+        // 이미지를 Base64로 인코딩
+        const base64Data = await imageToBase64(file);
         
-        console.log('FormData 내용:', {
+        // JSON 데이터로 업로드
+        const uploadData = {
+          type: 'schedule',
+          scheduleId: scheduleId,
+          date: schedule.date,
+          location: schedule.location,
+          activity: schedule.activity,
+          userData: JSON.stringify(userData),
+          fileName: file.name,
+          fileSize: file.size,
+          imageData: base64Data
+        };
+        
+        console.log('Upload data prepared:', {
           scheduleId,
           date: schedule.date,
           location: schedule.location,
           activity: schedule.activity,
           fileName: file.name,
           fileSize: file.size
-        })
+        });
         
         const response = await fetch('/api/gallery-upload', {
           method: 'POST',
-          body: formData
-        })
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(uploadData)
+        });
         
-        console.log(`파일 ${file.name} 응답 상태:`, response.status)
+        console.log(`파일 ${file.name} 응답 상태:`, response.status);
         
         if (!response.ok) {
-          const errorText = await response.text()
-          console.error(`파일 ${file.name} 업로드 실패:`, errorText)
+          const errorText = await response.text();
+          console.error(`파일 ${file.name} 업로드 실패:`, errorText);
           throw new Error(`Failed to upload ${file.name}: ${response.status} ${errorText}`);
         }
         
-        const result = await response.json()
-        console.log(`파일 ${file.name} 업로드 성공:`, result)
+        const result = await response.json();
+        console.log(`파일 ${file.name} 업로드 성공:`, result);
         return result;
       });
       
