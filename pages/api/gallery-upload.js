@@ -41,8 +41,18 @@ const getField = (fields, fieldName) => {
     return value || null;
 };
 
-
 export default async function handler(req, res) {
+  // POST 요청만 허용
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  // Content-Type 확인 (더 유연하게 처리)
+  const contentType = req.headers['content-type'] || '';
+  if (!contentType.includes('multipart/form-data') && !contentType.includes('application/x-www-form-urlencoded')) {
+    console.warn('Unexpected Content-Type:', contentType);
+  }
+
   const form = new IncomingForm({
     maxFileSize: 10 * 1024 * 1024, // 10MB로 증가
     maxFields: 20, // 필드 수 증가
