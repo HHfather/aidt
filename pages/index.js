@@ -79,11 +79,36 @@ export default function Login() {
             apiEndpoint = '/api/admin/login';
             payload = { password, region };
 
-            const response = await fetch(apiEndpoint, {
+            let response;
+            try {
+              response = await fetch(apiEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
-            });
+              });
+            } catch (networkError) {
+              // 네트워크/라우트 오류 시 관리자 비상 로그인(기본 비밀번호) 허용
+              if (password.trim() === '12311!!') {
+                const sessionData = { 
+                  isAdmin: true, 
+                  name: '관리자',
+                  affiliation: '관리자',
+                  region: region, 
+                  id: 'admin',
+                  loginTime: new Date().toISOString() 
+                };
+                localStorage.setItem('adminSession', JSON.stringify(sessionData));
+                sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
+                localStorage.setItem('userSession', JSON.stringify(sessionData));
+                localStorage.setItem('lastAdminRegion', region);
+                toast.dismiss();
+                toast.success('관리자님, 환영합니다!');
+                router.push('/admin');
+                return;
+              }
+              throw networkError;
+            }
+
             const result = await response.json();
             toast.dismiss();
 
@@ -105,6 +130,24 @@ export default function Login() {
                 redirectUrl = '/admin'; // 관리자 페이지로 이동
                 router.push(redirectUrl);
             } else {
+                // API 실패 시에도 기본 비밀번호로 비상 로그인 허용
+                if (password.trim() === '12311!!') {
+                  const sessionData = { 
+                    isAdmin: true, 
+                    name: '관리자',
+                    affiliation: '관리자',
+                    region: region, 
+                    id: 'admin',
+                    loginTime: new Date().toISOString() 
+                  };
+                  localStorage.setItem('adminSession', JSON.stringify(sessionData));
+                  sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
+                  localStorage.setItem('userSession', JSON.stringify(sessionData));
+                  localStorage.setItem('lastAdminRegion', region);
+                  toast.success('관리자님, 환영합니다!');
+                  router.push('/admin');
+                  return;
+                }
                 toast.error(result.error || '로그인에 실패했습니다.');
             }
 
