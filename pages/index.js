@@ -96,6 +96,9 @@ export default function Login() {
                     id: 'admin',
                     loginTime: new Date().toISOString() 
                 };
+                // 저장 위치 통일: 관리자 세션 키 추가
+                localStorage.setItem('adminSession', JSON.stringify(sessionData));
+                sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
                 localStorage.setItem('userSession', JSON.stringify(sessionData));
                 localStorage.setItem('lastAdminRegion', region);
                 toast.success('관리자님, 환영합니다!');

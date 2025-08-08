@@ -51,7 +51,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const adminData = sessionStorage.getItem('adminSession') || localStorage.getItem('adminSession');
     if (!adminData) {
-      router.push('/admin/login');
+      router.push('/');
     } else {
       setAdmin(JSON.parse(adminData));
       const loadAllData = async () => {
@@ -439,7 +439,7 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     sessionStorage.removeItem('adminSession');
     localStorage.removeItem('adminSession');
-    router.push('/admin/login');
+    router.push('/');
   };
 
   const handleInitializeFirebase = async () => {
