@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
+import { compressImages, formatFileSize } from '../../utils/imageCompressor';
 
 export default function MealsGallery() {
   const router = useRouter();
@@ -126,8 +127,23 @@ export default function MealsGallery() {
 
     setUploading(true);
     try {
+      // 이미지 압축 처리
+      toast.loading('이미지를 압축하고 있습니다...', { id: 'compressing' });
+      const compressedFiles = await compressImages(selectedFiles, 4); // 4MB로 압축
+      toast.dismiss('compressing');
+      
+      // 압축 결과 로그
+      compressedFiles.forEach((file, index) => {
+        const originalFile = selectedFiles[index];
+        const compressionRatio = ((originalFile.size - file.size) / originalFile.size * 100).toFixed(1);
+        if (file.size < originalFile.size) {
+          console.log(`파일 ${file.name} 압축 완료: ${formatFileSize(originalFile.size)} → ${formatFileSize(file.size)} (${compressionRatio}% 감소)`);
+          toast.success(`${file.name}: ${formatFileSize(originalFile.size)} → ${formatFileSize(file.size)} (${compressionRatio}% 압축)`);
+        }
+      });
+      
       const formData = new FormData();
-      selectedFiles.forEach(file => {
+      compressedFiles.forEach(file => {
         formData.append('images', file);
       });
       formData.append('description', description);
@@ -145,7 +161,7 @@ export default function MealsGallery() {
       const result = await response.json();
       
       if (result.success) {
-        toast.success(`📸 ${selectedMealType} 사진 ${selectedFiles.length}장이 성공적으로 업로드되었습니다!`);
+        toast.success(`📸 ${selectedMealType} 사진 ${compressedFiles.length}장이 성공적으로 업로드되었습니다!`);
         setSelectedFiles([]);
         setDescription('');
         setSelectedMealType('');

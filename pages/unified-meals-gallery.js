@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { useRef } from 'react'
 import toast from 'react-hot-toast'
+import { compressImage, formatFileSize } from '../utils/imageCompressor'
 
 export default function UnifiedMealsGallery() {
   const router = useRouter()
@@ -75,8 +76,21 @@ export default function UnifiedMealsGallery() {
 
     try {
       setUploadingPhoto(true)
+      
+      // 이미지 압축 처리
+      toast.loading('이미지를 압축하고 있습니다...', { id: 'compressing' });
+      const compressedFile = await compressImage(selectedFile, 4); // 4MB로 압축
+      toast.dismiss('compressing');
+      
+      // 압축 결과 로그
+      if (compressedFile.size < selectedFile.size) {
+        const compressionRatio = ((selectedFile.size - compressedFile.size) / selectedFile.size * 100).toFixed(1);
+        console.log(`파일 ${compressedFile.name} 압축 완료: ${formatFileSize(selectedFile.size)} → ${formatFileSize(compressedFile.size)} (${compressionRatio}% 감소)`);
+        toast.success(`${compressedFile.name}: ${formatFileSize(selectedFile.size)} → ${formatFileSize(compressedFile.size)} (${compressionRatio}% 압축)`);
+      }
+      
       const formData = new FormData()
-      formData.append('image', selectedFile)
+      formData.append('image', compressedFile)
       formData.append('userData', JSON.stringify(user))
       formData.append('mealType', mealType)
       formData.append('mealDate', mealDate)
@@ -340,6 +354,8 @@ export default function UnifiedMealsGallery() {
     </div>
   )
 }
+
+
 
 
 

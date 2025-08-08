@@ -293,3 +293,5 @@ async function analyzeLocationWithAI(location, activity) {
   };
 }
 
+
+

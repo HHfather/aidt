@@ -1,0 +1,8 @@
+d871086 - hhfather, 13 hours ago :  Fix announcements display and add conditional gallery buttons
+93f353d - hhfather, 13 hours ago :  Fix photo upload issues: increase file size limits and add proper error handling
+5c7a68a - hhfather, 13 hours ago :  UI improvements: remove refresh buttons shorten tab names remove travel info fix position display
+c92092d - hhfather, 14 hours ago :  fix: announcements load/sort and region field
+a919003 - hhfather, 14 hours ago :  feat: feedback tab for user and admin + feedback API
+5e43149 - hhfather, 15 hours ago :  Admin login fixes - fallback route and emergency login
+5785ba5 - hhfather, 15 hours ago :  Fix admin login: persist adminSession and admin redirect
+045eaf4 - hhfather, 15 hours ago : Initial deploy to Vercel

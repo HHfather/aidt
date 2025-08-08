@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { Toaster, toast } from 'react-hot-toast'
 import { db } from '../../firebaseConfig'
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy, updateDoc } from 'firebase/firestore'
+import { compressImages, formatFileSize } from '../../utils/imageCompressor'
 
 export default function FreeScheduleGallery() {
   const router = useRouter()
@@ -129,49 +130,65 @@ export default function FreeScheduleGallery() {
     }
 
     setUploading(true)
-    const uploadPromises = []
+    
+    try {
+      // 이미지 압축 처리
+      toast.loading('이미지를 압축하고 있습니다...', { id: 'compressing' });
+      const compressedFiles = await compressImages(Array.from(files), 4); // 4MB로 압축
+      toast.dismiss('compressing');
+      
+      // 압축 결과 로그
+      compressedFiles.forEach((file, index) => {
+        const originalFile = Array.from(files)[index];
+        const compressionRatio = ((originalFile.size - file.size) / originalFile.size * 100).toFixed(1);
+        if (file.size < originalFile.size) {
+          console.log(`파일 ${file.name} 압축 완료: ${formatFileSize(originalFile.size)} → ${formatFileSize(file.size)} (${compressionRatio}% 감소)`);
+          toast.success(`${file.name}: ${formatFileSize(originalFile.size)} → ${formatFileSize(file.size)} (${compressionRatio}% 압축)`);
+        }
+      });
+      
+      const uploadPromises = []
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} 파일이 너무 큽니다. (최대 10MB)`)
-        continue
+      for (let i = 0; i < compressedFiles.length; i++) {
+        const file = compressedFiles[i]
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} 파일이 너무 큽니다. (최대 10MB)`)
+          continue
+        }
+
+        const uploadPromise = new Promise(async (resolve, reject) => {
+          try {
+            const timestamp = Date.now()
+            const fileName = `${timestamp}_${file.name}`
+            const storageRef = ref(storage, `free-schedule-gallery/${id}/${fileName}`)
+            
+            const snapshot = await uploadBytes(storageRef, file)
+            const downloadURL = await getDownloadURL(snapshot.ref)
+            
+            const imageData = {
+              scheduleId: id,
+              fileName: fileName,
+              originalName: file.name,
+              downloadURL: downloadURL,
+              uploadTime: new Date(),
+              uploadedBy: userData.name || userData.email,
+              userRegion: userData.region,
+              comments: [],
+              emojis: {}
+            }
+            
+            const docRef = await addDoc(collection(db, 'free-schedule-gallery'), imageData)
+            imageData.id = docRef.id
+            
+            resolve(imageData)
+          } catch (error) {
+            reject(error)
+          }
+        })
+        
+        uploadPromises.push(uploadPromise)
       }
 
-      const uploadPromise = new Promise(async (resolve, reject) => {
-        try {
-          const timestamp = Date.now()
-          const fileName = `${timestamp}_${file.name}`
-          const storageRef = ref(storage, `free-schedule-gallery/${id}/${fileName}`)
-          
-          const snapshot = await uploadBytes(storageRef, file)
-          const downloadURL = await getDownloadURL(snapshot.ref)
-          
-          const imageData = {
-            scheduleId: id,
-            fileName: fileName,
-            originalName: file.name,
-            downloadURL: downloadURL,
-            uploadTime: new Date(),
-            uploadedBy: userData.name || userData.email,
-            userRegion: userData.region,
-            comments: [],
-            emojis: {}
-          }
-          
-          const docRef = await addDoc(collection(db, 'free-schedule-gallery'), imageData)
-          imageData.id = docRef.id
-          
-          resolve(imageData)
-        } catch (error) {
-          reject(error)
-        }
-      })
-      
-      uploadPromises.push(uploadPromise)
-    }
-
-    try {
       const uploadedImages = await Promise.all(uploadPromises)
       setImages(prev => [...uploadedImages, ...prev])
       toast.success(`${uploadedImages.length}장의 사진이 업로드되었습니다.`)

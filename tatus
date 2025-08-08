@@ -1,0 +1,8 @@
+[33md871086[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m  Fix announcements display and add conditional gallery buttons
+[33m93f353d[m  Fix photo upload issues: increase file size limits and add proper error handling
+[33m5c7a68a[m  UI improvements: remove refresh buttons shorten tab names remove travel info fix position display
+[33mc92092d[m  fix: announcements load/sort and region field
+[33ma919003[m  feat: feedback tab for user and admin + feedback API
+[33m5e43149[m  Admin login fixes - fallback route and emergency login
+[33m5785ba5[m  Fix admin login: persist adminSession and admin redirect
+[33m045eaf4[m Initial deploy to Vercel

@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
-import toast from 'react-hot-toast'
+import { Toaster, toast } from 'react-hot-toast'
+import { db } from '../firebaseConfig'
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy, updateDoc } from 'firebase/firestore'
+import { compressImages, formatFileSize } from '../utils/imageCompressor'
 
 export default function FreeSchedule() {
   const router = useRouter()
@@ -357,7 +360,22 @@ export default function FreeSchedule() {
     try {
       setUploading(true)
       
-      const uploadPromises = Array.from(files).map(async (file) => {
+      // 이미지 압축 처리
+      toast.loading('이미지를 압축하고 있습니다...', { id: 'compressing' });
+      const compressedFiles = await compressImages(Array.from(files), 4); // 4MB로 압축
+      toast.dismiss('compressing');
+      
+      // 압축 결과 로그
+      compressedFiles.forEach((file, index) => {
+        const originalFile = Array.from(files)[index];
+        const compressionRatio = ((originalFile.size - file.size) / originalFile.size * 100).toFixed(1);
+        if (file.size < originalFile.size) {
+          console.log(`파일 ${file.name} 압축 완료: ${formatFileSize(originalFile.size)} → ${formatFileSize(file.size)} (${compressionRatio}% 감소)`);
+          toast.success(`${file.name}: ${formatFileSize(originalFile.size)} → ${formatFileSize(file.size)} (${compressionRatio}% 압축)`);
+        }
+      });
+      
+      const uploadPromises = compressedFiles.map(async (file) => {
         const formData = new FormData()
         formData.append('image', file)
         const regionNumber = userRegion?.replace(/[^0-9]/g, '') || '2'
@@ -379,7 +397,7 @@ export default function FreeSchedule() {
       });
       
       await Promise.all(uploadPromises);
-      toast.success(`${files.length}장의 사진이 업로드되었습니다.`);
+      toast.success(`${compressedFiles.length}장의 사진이 업로드되었습니다.`);
       await loadGalleryImages();
       setShowImageUpload(false);
       setSelectedFiles([]);
