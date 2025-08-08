@@ -48,12 +48,6 @@ export default function handler(req, res) {
       }
       resolve();
     } else if (req.method === 'POST') {
-      // Content-Type 확인 (더 유연하게 처리)
-      const contentType = req.headers['content-type'] || '';
-      if (!contentType.includes('multipart/form-data') && !contentType.includes('application/x-www-form-urlencoded')) {
-        console.warn('Unexpected Content-Type:', contentType);
-      }
-
       const form = new IncomingForm({
         maxFileSize: 10 * 1024 * 1024, // 10MB로 증가
         maxFields: 20, // 필드 수 증가
