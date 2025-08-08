@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 export const config = {
   api: {
     bodyParser: false,
+    responseLimit: false,
   },
 };
 
@@ -41,7 +42,11 @@ const getField = (fields, fieldName) => {
 
 
 export default async function handler(req, res) {
-  const form = new IncomingForm();
+  const form = new IncomingForm({
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFields: 10,
+    allowEmptyFiles: false,
+  });
 
   form.parse(req, async (err, fields, files) => {
     if (err) {

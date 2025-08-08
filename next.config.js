@@ -24,6 +24,13 @@ const nextConfig = {
       },
     ]
   },
+  // API 요청 크기 제한 설정
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+    responseLimit: false,
+  },
   // 에러 처리 설정 추가
   onDemandEntries: {
     // period (in ms) where the server will keep pages in the buffer

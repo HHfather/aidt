@@ -2,6 +2,15 @@ import { db, storage } from '../../firebaseConfig';
 import { collection, addDoc, getDocs, getDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+    responseLimit: false,
+  },
+};
+
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
