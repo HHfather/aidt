@@ -44,23 +44,24 @@ const getField = (fields, fieldName) => {
 
 export default async function handler(req, res) {
   const form = new IncomingForm({
-    maxFileSize: 10 * 1024 * 1024, // 10MB로 증가 (클라이언트에서 4MB로 압축하므로 여유있게 설정)
-    maxFields: 10,
+    maxFileSize: 10 * 1024 * 1024, // 10MB로 증가
+    maxFields: 20, // 필드 수 증가
     allowEmptyFiles: false,
+    keepExtensions: true,
+    multiples: true, // 다중 파일 지원
   });
 
   form.parse(req, async (err, fields, files) => {
     if (err) {
       console.error('Form parsing error:', err);
-      return res.status(500).json({ success: false, error: 'Form parsing error' });
+      return res.status(500).json({ success: false, error: `Form parsing error: ${err.message}` });
     }
 
     try {
         console.log('--- Gallery Upload API ---');
         console.log('Received fields keys:', Object.keys(fields));
         console.log('Received files keys:', Object.keys(files));
-        console.log('files.file object type:', Array.isArray(files.file) ? 'Array' : typeof files.file);
-
+        
         // --- 데이터 유효성 검사 및 추출 ---
         // 다양한 필드명 지원 (images, file, image)
         const uploadedFiles = files.images || files.file || files.image;
@@ -102,7 +103,14 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'Type and user data are required.' });
         }
         
-        const userData = JSON.parse(userDataString);
+        let userData;
+        try {
+            userData = JSON.parse(userDataString);
+        } catch (parseError) {
+            console.error('[ERROR] Failed to parse userData:', parseError);
+            return res.status(400).json({ success: false, error: 'Invalid user data format.' });
+        }
+        
         if (!userData || !userData.id) {
             console.error('[ERROR] User ID is missing in userData.', { userData });
             return res.status(403).json({ success: false, error: 'User ID is required.' });

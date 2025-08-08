@@ -50,14 +50,16 @@ export default function handler(req, res) {
     } else if (req.method === 'POST') {
       const form = new IncomingForm({
         maxFileSize: 10 * 1024 * 1024, // 10MB로 증가
-        maxFields: 10,
+        maxFields: 20, // 필드 수 증가
         allowEmptyFiles: false,
+        keepExtensions: true,
+        multiples: true, // 다중 파일 지원
       });
 
       form.parse(req, async (err, fields, files) => {
         if (err) {
           console.error('Form parsing error:', err);
-          res.status(500).json({ success: false, error: 'Form parsing error' });
+          res.status(500).json({ success: false, error: `Form parsing error: ${err.message}` });
           return resolve();
         }
 
@@ -76,7 +78,16 @@ export default function handler(req, res) {
             return resolve();
           }
 
-          const userData = JSON.parse(getField(fields, 'userData') || '{}');
+          const userDataString = getField(fields, 'userData');
+          let userData;
+          try {
+            userData = JSON.parse(userDataString || '{}');
+          } catch (parseError) {
+            console.error('[ERROR] Failed to parse userData:', parseError);
+            res.status(400).json({ success: false, error: 'Invalid user data format.' });
+            return resolve();
+          }
+          
           const mealType = getField(fields, 'mealType'); // 아침, 점심, 저녁
           const mealDate = getField(fields, 'mealDate');
           const location = getField(fields, 'location');
