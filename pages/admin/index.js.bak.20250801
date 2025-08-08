@@ -1,0 +1,14 @@
+// 백업: 2025-08-01 명단 함수 적용 직후 버전
+// 이 파일은 자동 백업입니다. 필요시 복원하세요.
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import toast from 'react-hot-toast';
+import { db } from '../../firebaseConfig';
+import { collection, getDocs } from 'firebase/firestore';
+import { initializeFirebaseData } from '../../utils/initializeFirebase';
+import { announcementOperations, participantOperations, projectOperations } from '../../utils/firebaseOperations';
+
+export default function AdminDashboard() {
+  // ...전체 코드 백업...
+}

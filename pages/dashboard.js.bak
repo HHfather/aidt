@@ -1,0 +1,810 @@
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
+import Link from 'next/link'
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy 
+} from 'firebase/firestore'
+import { db } from '../firebaseConfig'
+import toast from 'react-hot-toast'
+
+export default function Dashboard() {
+  const router = useRouter()
+  const [user, setUser] = useState(null)
+  const [project, setProject] = useState(null)
+  const [schedules, setSchedules] = useState([])
+  const [announcements, setAnnouncements] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [userStats, setUserStats] = useState({
+    comments: 3,
+    reactions: 12,
+    photos: 2
+  })
+  const [teamRanking, setTeamRanking] = useState({
+    currentRank: 1,
+    totalTeams: 4,
+    pointsToNext: 0,
+    motivationMessage: ''
+  })
+
+  useEffect(() => {
+    const userSession = localStorage.getItem('userSession');
+    if (!userSession) {
+      router.push('/');
+      return;
+    }
+
+    try {
+      const sessionData = JSON.parse(userSession);
+      if (sessionData.isUser) {
+        setUser(sessionData.user);
+        setProject(sessionData.currentProject);
+        // `schedules` 컬렉션 대신 `currentProject`에 있는 스케줄 데이터를 사용
+        if (sessionData.currentProject && sessionData.currentProject.schedule) {
+          const formattedSchedules = formatSchedules(sessionData.currentProject.schedule);
+          setSchedules(formattedSchedules);
+        } else {
+          setSchedules([]); // 스케줄 데이터가 없는 경우
+        }
+        setLoading(false);
+      } else {
+        // 사용자가 아닌 경우 (예: 가이드, 관리자)
+        toast.error("잘못된 접근입니다.");
+        router.push('/');
+      }
+    } catch (error) {
+      console.error('세션 데이터 처리 오류:', error);
+      toast.error("세션 정보를 불러오는 데 실패했습니다.");
+      router.push('/');
+    }
+  }, [router]);
+
+  // 스케줄 데이터 포맷팅 함수
+  const formatSchedules = (scheduleArray) => {
+    if (!scheduleArray || scheduleArray.length === 0) return [];
+    
+    return scheduleArray.map((item, index) => ({
+      id: `${item.date}-${index}`,
+      date: item.date,
+      time: item.time,
+      activityName: item.activity,
+      location: item.location,
+      type: 'activity', // 기본 유형을 'activity'로 설정
+      adminNotes: item.notes || '',
+    }));
+  };
+
+
+  const loadProjectData = async (projectId, userData) => {
+    try {
+      // AI 파싱된 일정 데이터 로드 시도
+      let schedulesData = []
+      
+      try {
+        // 관리자가 업로드한 AI 파싱 파일에서 일정 데이터 가져오기
+        const uploadedFilesQuery = query(
+          collection(db, 'uploadedFiles'),
+          where('type', '==', 'schedule'),
+          where('verified', '==', true),
+          orderBy('uploadedAt', 'desc')
+        )
+        const uploadedFilesSnapshot = await getDocs(uploadedFilesQuery)
+        
+        if (!uploadedFilesSnapshot.empty) {
+          const latestScheduleFile = uploadedFilesSnapshot.docs[0].data()
+          
+          if (latestScheduleFile.parsedData && latestScheduleFile.parsedData.schedules) {
+            // AI 파싱된 데이터를 대시보드 형식으로 변환
+            schedulesData = latestScheduleFile.parsedData.schedules.map((schedule, index) => ({
+              id: `parsed_${index}`,
+              date: schedule.date,
+              time: schedule.time,
+              activityName: schedule.activity,
+              location: schedule.location,
+              type: schedule.category === '자유시간' ? 'free' : 'activity',
+              adminNotes: schedule.notes || '',
+              participants: schedule.participants || '',
+              aiParsed: true
+            }))
+            
+            console.log('AI 파싱된 일정 데이터를 불러왔습니다:', schedulesData.length, '개')
+          }
+        }
+
+        // AI 파싱된 데이터가 없으면 기존 Firebase 스케줄 확인
+        if (schedulesData.length === 0) {
+          const schedulesQuery = query(
+            collection(db, 'schedules'),
+            where('projectId', '==', projectId),
+            orderBy('date', 'asc')
+          )
+          const schedulesSnapshot = await getDocs(schedulesQuery)
+          schedulesData = schedulesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+        }
+        
+        if (schedulesData.length > 0) {
+          // 📋 자유일정 카드 자동 삽입 로직
+          const enhancedSchedules = []
+          
+          // 날짜별로 그룹화
+          const schedulesByDate = {}
+          schedulesData.forEach(schedule => {
+            const date = schedule.date
+            if (!schedulesByDate[date]) {
+              schedulesByDate[date] = []
+            }
+            schedulesByDate[date].push(schedule)
+          })
+
+          // 각 날짜의 마지막에 자유일정 카드 추가
+          Object.keys(schedulesByDate).sort().forEach(date => {
+            const daySchedules = schedulesByDate[date]
+            
+            // 해당 날짜의 일정들을 시간순으로 정렬
+            daySchedules.sort((a, b) => {
+              const timeA = a.time ? a.time.replace(':', '') : '0000'
+              const timeB = b.time ? b.time.replace(':', '') : '0000'
+              return timeA.localeCompare(timeB)
+            })
+            
+            // 기존 일정들 추가
+            enhancedSchedules.push(...daySchedules)
+            
+            // 해당 날짜에 자유일정이 없으면 자동으로 추가
+            const hasFreeSchedule = daySchedules.some(s => s.type === 'free')
+            if (!hasFreeSchedule) {
+              const freeScheduleCard = {
+                id: `auto_free_${date}`,
+                date: date,
+                time: '자유시간',
+                activityName: '🗓️ 자유일정',
+                location: '자유 선택',
+                type: 'free',
+                adminNotes: '개인 또는 팀별로 자유롭게 계획할 수 있는 시간입니다. 새로운 활동을 만들거나 참여해보세요!',
+                autoGenerated: true
+              }
+              enhancedSchedules.push(freeScheduleCard)
+            }
+          })
+
+          setSchedules(enhancedSchedules)
+        } else {
+          // Firebase에서 데이터가 없으면 테스트 데이터 사용
+          console.log('Firebase에 일정 데이터가 없습니다. 테스트 데이터를 표시합니다.')
+          const testSchedules = generateTestSchedules()
+          setSchedules(testSchedules)
+        }
+      } catch (firebaseError) {
+        console.log('Firebase 연결 실패, 테스트 데이터 사용:', firebaseError)
+        // Firebase 연결 실패 시 테스트 데이터 사용
+        const testSchedules = generateTestSchedules()
+        setSchedules(testSchedules)
+      }
+
+      // 테스트 일정 생성 함수
+      const generateTestSchedules = () => {
+        const today = new Date()
+        const tomorrow = new Date(today)
+        tomorrow.setDate(today.getDate() + 1)
+        const dayAfter = new Date(today)
+        dayAfter.setDate(today.getDate() + 2)
+
+        return [
+          {
+            id: 'test_schedule_1',
+            date: today.toISOString().split('T')[0],
+            time: '09:00',
+            activityName: '🏛️ 문화유산 탐방',
+            location: '고궁 박물관',
+            type: 'activity',
+            adminNotes: '테스트 일정입니다. 관리자 페이지에서 계획서를 업로드하면 실제 일정으로 교체됩니다.'
+          },
+          {
+            id: 'test_schedule_2',
+            date: today.toISOString().split('T')[0],
+            time: '14:00',
+            activityName: '🗓️ 자유시간 활동',
+            location: '개인 선택',
+            type: 'free',
+            adminNotes: '자유일정 관리 페이지에서 계획을 세워보세요.',
+            autoGenerated: true
+          },
+          {
+            id: 'test_schedule_3',
+            date: tomorrow.toISOString().split('T')[0],
+            time: '10:00',
+            activityName: '🏢 현지 기관 방문',
+            location: '교육청',
+            type: 'activity',
+            adminNotes: '테스트 일정입니다.'
+          },
+          {
+            id: 'test_schedule_4',
+            date: tomorrow.toISOString().split('T')[0],
+            time: '자유시간',
+            activityName: '🗓️ 자유일정',
+            location: '자유 선택',
+            type: 'free',
+            adminNotes: '자유롭게 시간을 보내세요!',
+            autoGenerated: true
+          },
+          {
+            id: 'test_schedule_5',
+            date: dayAfter.toISOString().split('T')[0],
+            time: '19:00',
+            activityName: '🌃 저녁 문화체험',
+            location: '전통 공연장',
+            type: 'afternoon',
+            adminNotes: '테스트 저녁 활동입니다.'
+          }
+        ]
+      }
+
+      // 공지사항 데이터 로드 (실시간 Firebase 연동)
+      try {
+        const announcementQuery = query(
+          collection(db, 'announcements'),
+          where('projectId', '==', projectId),
+          orderBy('createdAt', 'desc')
+        )
+        const announcementSnapshot = await getDocs(announcementQuery)
+        const announcementData = announcementSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+
+        if (announcementData.length > 0) {
+          setAnnouncements(announcementData.slice(0, 3)) // 최신 3개만
+        } else {
+          // 공지사항이 없으면 테스트 공지사항 표시
+          setAnnouncements([
+            {
+              id: 'test_notice_1',
+              content: '📢 테스트 공지사항입니다. 관리자가 실제 공지사항을 등록하면 여기에 표시됩니다.',
+              author: '시스템 관리자',
+              date: new Date().toISOString(),
+              urgentLevel: 'normal'
+            },
+            {
+              id: 'test_notice_2',
+              content: '💡 PDF 계획서를 업로드하면 자동으로 일정이 파싱되어 표시됩니다.',
+              author: '시스템 관리자',
+              date: new Date().toISOString(),
+              urgentLevel: 'important'
+            }
+          ])
+        }
+      } catch (fbError) {
+        console.log('Firebase 공지사항 로드 실패:', fbError)
+        // 오류 시에도 테스트 공지사항 표시
+        setAnnouncements([
+          {
+            id: 'test_notice_error',
+            content: "📢 공지사항을 불러오는 중 오류가 발생했습니다. 관리자에게 문의하세요.",
+            author: "시스템",
+            date: new Date().toISOString(),
+            urgentLevel: "normal"
+          }
+        ])
+      }
+
+      // 📊 실시간 사용자 통계 로드
+      await loadUserStats(userData.id)
+
+      // 🏆 팀 순위 로드
+      await loadTeamRanking(userData.team)
+
+      setLoading(false)
+    } catch (error) {
+      console.error('프로젝트 데이터 로드 오류:', error)
+      toast.error('데이터를 불러오는 중 오류가 발생했습니다.')
+      setLoading(false)
+    }
+  }
+
+  // 📊 실시간 사용자 통계 로드 함수
+  const loadUserStats = async (userId) => {
+    try {
+      let commentsCount = 0
+      let reactionsCount = 0  
+      let photosCount = 0
+
+      // Firebase에서 실제 데이터 로드 시도
+      try {
+        // 댓글 수 조회
+        const commentsQuery = query(
+          collection(db, 'comments'),
+          where('userId', '==', userId)
+        )
+        const commentsSnapshot = await getDocs(commentsQuery)
+        commentsCount = commentsSnapshot.size
+
+        // 반응 수 조회
+        const reactionsQuery = query(
+          collection(db, 'reactions'),
+          where('userId', '==', userId)
+        )
+        const reactionsSnapshot = await getDocs(reactionsQuery)
+        reactionsCount = reactionsSnapshot.size
+
+        // 좋아요 수 조회
+        const likesQuery = query(
+          collection(db, 'likes'),
+          where('userId', '==', userId)
+        )
+        const likesSnapshot = await getDocs(likesQuery)
+        reactionsCount += likesSnapshot.size
+
+        // 사진 수 조회
+        const photosQuery = query(
+          collection(db, 'photos'),
+          where('uploaderId', '==', userId)
+        )
+        const photosSnapshot = await getDocs(photosQuery)
+        photosCount = photosSnapshot.size
+
+        console.log('📊 실시간 통계:', { commentsCount, reactionsCount, photosCount })
+
+      } catch (fbError) {
+        console.log('Firebase 통계 로드 실패, 임시 데이터 사용:', fbError)
+        // Firebase 실패 시 기본값 유지
+        commentsCount = 3
+        reactionsCount = 12
+        photosCount = 2
+      }
+
+      // 통계 업데이트
+      setUserStats({
+        comments: commentsCount,
+        reactions: reactionsCount,
+        photos: photosCount
+      })
+
+    } catch (error) {
+      console.error('통계 로드 오류:', error)
+    }
+  }
+
+  // 🏆 팀 순위 로드 함수
+  const loadTeamRanking = async (teamName) => {
+    try {
+      // 실제 팀별 데이터를 시뮬레이션 (team-ranking.js와 동일한 로직)
+      const mockTeams = [
+        {
+          name: '프라하 탐험대',
+          startDate: '2025-08-05T09:00:00Z',
+          totalScore: 0,
+          activities: { photos: 15, comments: 24, reactions: 45, participationRate: 98 }
+        },
+        {
+          name: '비엔나 여행단',
+          startDate: '2025-08-13T09:00:00Z',
+          totalScore: 0,
+          activities: { photos: 12, comments: 18, reactions: 32, participationRate: 85 }
+        },
+        {
+          name: '중부유럽 러버즈',
+          startDate: '2025-08-07T09:00:00Z',
+          totalScore: 0,
+          activities: { photos: 18, comments: 31, reactions: 52, participationRate: 92 }
+        },
+        {
+          name: '체코&오스트리아',
+          startDate: '2025-08-10T09:00:00Z',
+          totalScore: 0,
+          activities: { photos: 10, comments: 15, reactions: 28, participationRate: 78 }
+        }
+      ]
+
+      // 절대적 시간 기준으로 점수 계산
+      const now = new Date()
+      const rankedTeams = mockTeams.map(team => {
+        const startTime = new Date(team.startDate)
+        const hoursFromStart = Math.max(0, (now - startTime) / (1000 * 60 * 60))
+        const timeWeight = Math.min(hoursFromStart / 14, 2)
+        
+        const photoScore = team.activities.photos * 5
+        const commentScore = team.activities.comments * 3
+        const reactionScore = team.activities.reactions * 1
+        const participationBonus = team.activities.participationRate * 2
+        
+        const baseScore = photoScore + commentScore + reactionScore + participationBonus
+        const totalScore = Math.round(baseScore * timeWeight)
+        
+        return { ...team, totalScore }
+      }).sort((a, b) => b.totalScore - a.totalScore)
+
+      // 현재 팀의 순위 찾기
+      const myTeamIndex = rankedTeams.findIndex(team => team.name === teamName)
+      const currentRank = myTeamIndex + 1
+      const pointsToNext = myTeamIndex > 0 ? rankedTeams[myTeamIndex - 1].totalScore - rankedTeams[myTeamIndex].totalScore : 0
+
+      // 동기부여 메시지 생성
+      const motivationMessages = [
+        "선생님들보다 더 많이 작성하지 않을까요? 📝✨",
+        "이정도 참여도면 선생님들도 깜짝 놀라실 것 같아요! 👨‍🏫😮",
+        "벌써 이렇게 활발하시다니, 연수가 끝날 때까지 얼마나 더 성장하실지 기대돼요! 🚀",
+        "선생님들 눈에 띌 만한 활동량이네요! 계속 이런 열정 보여주세요! 🔥",
+        "이런 적극성이라면 다른 팀들도 자극받을 것 같아요! 💪",
+        "선생님들이 보시면 '이 팀은 정말 특별하다'고 생각하실 거예요! ⭐",
+        "연수 기간 동안 가장 활발한 팀이 될 수 있을 것 같아요! 🏆"
+      ]
+
+      setTeamRanking({
+        currentRank,
+        totalTeams: rankedTeams.length,
+        pointsToNext,
+        motivationMessage: motivationMessages[Math.floor(Math.random() * motivationMessages.length)]
+      })
+
+    } catch (error) {
+      console.error('팀 순위 로드 오류:', error)
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('userSession')
+    toast.success('로그아웃 되었습니다.')
+    router.push('/')
+  }
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('ko-KR', {
+      month: 'long',
+      day: 'numeric',
+      weekday: 'short'
+    })
+  }
+
+  const getMotivationMessage = () => {
+    const { comments, reactions, photos } = userStats
+    const total = comments + reactions + photos
+    
+    if (total === 0) {
+      return "아직 참여가 부족해요 😢 사진을 올리고 댓글을 남겨보세요!"
+    } else if (total < 5) {
+      return "좋은 시작이에요! 👍 더 많이 참여해보세요!"
+    } else if (total < 15) {
+      return "활발하게 참여하고 계시네요! 🎉"
+    } else {
+      return "정말 멋진 참여도입니다! 🌟 최고에요!"
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-lg">데이터 로딩 중...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* 헤더 */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {project?.projectName}
+              </h1>
+              <p className="text-sm text-gray-600">
+                {user?.name}님 ({user?.affiliation})
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              로그아웃
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          
+          {/* 상단: 공지사항 + 오늘의 활동 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            
+            {/* 📢 공지사항 */}
+            <div className="bg-white rounded-lg shadow-md">
+              <div className="p-4 border-b bg-yellow-50">
+                <h2 className="text-lg font-semibold text-yellow-800 flex items-center">
+                  📢 최신 공지사항
+                </h2>
+              </div>
+              <div className="p-4">
+                {announcements.length > 0 ? (
+                  <div className="space-y-3">
+                    {announcements.slice(0, 2).map(announcement => (
+                      <div key={announcement.id} className={`p-3 rounded-lg ${
+                        announcement.urgentLevel === 'urgent' ? 'bg-red-50 border border-red-200' :
+                        announcement.urgentLevel === 'important' ? 'bg-orange-50 border border-orange-200' :
+                        'bg-blue-50 border border-blue-200'
+                      }`}>
+                        <div className="flex items-start justify-between mb-1">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            announcement.urgentLevel === 'urgent' ? 'bg-red-100 text-red-800' :
+                            announcement.urgentLevel === 'important' ? 'bg-orange-100 text-orange-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {announcement.urgentLevel === 'urgent' ? '🚨 긴급' :
+                             announcement.urgentLevel === 'important' ? '⚠️ 중요' : '📢 일반'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(announcement.date)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-800">{announcement.content}</p>
+                        <p className="text-xs text-gray-600 mt-1">- {announcement.author}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-3xl mb-2">📭</div>
+                    <p className="text-gray-600">새로운 공지사항이 없습니다</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 📅 오늘의 활동 */}
+            <div className="bg-white rounded-lg shadow-md">
+              <div className="p-4 border-b bg-blue-50">
+                <h2 className="text-lg font-semibold text-blue-800 flex items-center">
+                  📅 오늘의 활동
+                </h2>
+              </div>
+              <div className="p-4">
+                {(() => {
+                  const today = new Date().toISOString().split('T')[0]
+                  const todaySchedules = schedules.filter(schedule => schedule.date === today)
+                  
+                  return todaySchedules.length > 0 ? (
+                    <div className="space-y-3">
+                      {todaySchedules.map((schedule) => (
+                        <div 
+                          key={schedule.id}
+                          onClick={() => router.push(`/activity/${schedule.id}`)}
+                          className="p-3 border border-gray-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                              {schedule.time}
+                            </div>
+                            <span className="text-xs text-gray-500">📍 {schedule.location}</span>
+                          </div>
+                          <h3 className="font-semibold text-gray-900">{schedule.activityName}</h3>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-3xl mb-2">🗓️</div>
+                      <p className="text-gray-600">오늘 예정된 활동이 없습니다</p>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+          
+          {/* 🗺️ 빠른 링크 */}
+          <div className="mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link href="/free-schedule">
+                <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-green-300">
+                  <div className="text-center">
+                    <div className="text-4xl mb-3">🗓️</div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">자유일정 관리</h3>
+                    <p className="text-gray-600 text-sm">자유시간 활동 계획하기</p>
+                  </div>
+                </div>
+              </Link>
+              
+              <Link href="/team-ranking">
+                <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-purple-300">
+                  <div className="text-center">
+                    <div className="text-4xl mb-3">📊</div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">팀별 순위</h3>
+                    <p className="text-gray-600 text-sm">실시간 참여도 랭킹</p>
+                    
+                    {/* 현재 팀 순위 표시 */}
+                    <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+                      <div className="text-lg font-bold text-purple-800">
+                        현재 {teamRanking.currentRank}위 / {teamRanking.totalTeams}팀
+                      </div>
+                      {teamRanking.pointsToNext > 0 && (
+                        <div className="text-sm text-purple-600 mt-1">
+                          상위팀과 {teamRanking.pointsToNext}점 차이
+                        </div>
+                      )}
+                      {teamRanking.currentRank === 1 && (
+                        <div className="text-sm text-purple-600 mt-1">
+                          🏆 현재 1위! 
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* 참여 현황 카드 - 새로운 위치 */}
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg p-6 text-white shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold flex items-center">
+                  🌟 {user?.name}님의 참여 현황
+                </h2>
+                <button
+                  onClick={() => {
+                    loadUserStats(user?.id)
+                    loadTeamRanking(user?.team)
+                  }}
+                  className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-full text-sm transition-all"
+                >
+                  🔄 새로고침
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center bg-white bg-opacity-10 rounded-lg p-3">
+                  <div className="text-3xl font-bold">{userStats.photos}</div>
+                  <div className="text-sm opacity-90">� 사진</div>
+                </div>
+                <div className="text-center bg-white bg-opacity-10 rounded-lg p-3">
+                  <div className="text-3xl font-bold">{userStats.comments}</div>
+                  <div className="text-sm opacity-90">💬 댓글</div>
+                </div>
+                <div className="text-center bg-white bg-opacity-10 rounded-lg p-3">
+                  <div className="text-3xl font-bold">{userStats.reactions}</div>
+                  <div className="text-sm opacity-90">� 반응</div>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-lg opacity-95 font-medium">{getMotivationMessage()}</p>
+                {teamRanking.motivationMessage && (
+                  <p className="text-sm opacity-90 mt-2 bg-white bg-opacity-20 rounded-lg p-2">
+                    💡 {teamRanking.motivationMessage}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 연수 일정 */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              📅 연수 일정
+            </h2>
+            <div className="grid gap-4">
+              {schedules.map((schedule) => (
+                <div
+                  key={schedule.id}
+                  className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => {
+                    if (schedule.type === 'afternoon') {
+                      router.push(`/afternoon/${schedule.id}`)
+                    } else if (schedule.type === 'free') {
+                      router.push(`/free-schedule`)
+                    } else {
+                      router.push(`/activity/${schedule.id}`)
+                    }
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          schedule.type === 'afternoon' 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : schedule.type === 'free'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {formatDate(schedule.date)}
+                        </div>
+                        <div className="text-gray-600 text-sm">
+                          {schedule.time}
+                        </div>
+                        {schedule.type === 'afternoon' && (
+                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                            🌅 오후활동
+                          </span>
+                        )}
+                        {schedule.type === 'free' && (
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                            🗓️ 자유일정
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        {schedule.activityName}
+                      </h3>
+                      <p className="text-gray-600 flex items-center">
+                        📍 {schedule.location}
+                      </p>
+                      {schedule.adminNotes && (
+                        <p className="text-sm text-blue-600 mt-2">
+                          💡 {schedule.adminNotes}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end space-y-2">
+                      <div className={`px-3 py-1 rounded-full text-sm ${
+                        schedule.type === 'afternoon'
+                          ? 'bg-orange-100 text-orange-600'
+                          : schedule.type === 'free'
+                          ? 'bg-purple-100 text-purple-600'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {schedule.type === 'afternoon' ? '🏨 숙소활동' : 
+                         schedule.type === 'free' ? '🗓️ 자유일정' : '📸 사진 갤러리'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        클릭하여 보기 →
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 빠른 액션 버튼들 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow">
+              <div className="text-2xl mb-2">📸</div>
+              <div className="font-medium text-gray-900">사진 업로드</div>
+              <div className="text-sm text-gray-600">새 사진 추가</div>
+            </button>
+            
+            <button className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow">
+              <div className="text-2xl mb-2">🗺️</div>
+              <div className="font-medium text-gray-900">전체 동선</div>
+              <div className="text-sm text-gray-600">연수 경로 보기</div>
+            </button>
+            
+            <button className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow">
+              <div className="text-2xl mb-2">🍽️</div>
+              <div className="font-medium text-gray-900">추천 장소</div>
+              <div className="text-sm text-gray-600">맛집 & 명소</div>
+            </button>
+            
+            <button className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow">
+              <div className="text-2xl mb-2">👥</div>
+              <div className="font-medium text-gray-900">팀 정보</div>
+              <div className="text-sm text-gray-600">{user?.team} 멤버</div>
+            </button>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  )
+}
+
+// 📅 날짜 포맷팅 함수
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토']
+  const dayName = dayNames[date.getDay()]
+  
+  return `${month}/${day} (${dayName})`
+}
+
+

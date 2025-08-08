@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "aidt-921d3"
+  },
+  "targets": {
+    "aidt-921d3": {
+      "hosting": {
+        "default": [
+          "aidt-921d3"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

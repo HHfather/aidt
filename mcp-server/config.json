@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "overseas-training": {
+      "command": "node",
+      "args": ["mcp-server/index.mjs"],
+      "env": {
+        "GEMINI_API_KEY": "AIzaSyApNA3qwtPb9oBMVhmv9PuiUuGWd8vFUvs"
+      }
+    }
+  }
+}

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI 스케줄 파싱 테스트</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; height: 300px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; }
+        .result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>🤖 AI 스케줄 파싱 테스트</h1>
+    
+    <textarea id="scheduleText" placeholder="일정 텍스트를 입력하세요...">2025년 8월 1일 (목요일) 1일차
+09:00 인천공항 제2터미널 3층 출국장 집합
+11:00 인천공항 출발 (OZ호항공 OZ123편)
+15:30 싱가포르 창이공항 도착
+17:00 입국수속 및 가이드 미팅
+18:30 호텔 체크인 (마리나 베이 샌즈 호텔)
+19:30 환영 만찬 (호텔 레스토랑)
+
+2025년 8월 2일 (금요일) 2일차
+08:00 호텔 조식
+09:30 시내관광 투어 시작
+10:00 머라이언 파크 견학 및 사진촬영
+11:30 싱가포르 국립박물관 방문
+13:00 현지 레스토랑에서 중식
+14:30 차이나타운 문화탐방
+16:00 쇼핑몰 자유시간 (오차드 로드)
+18:00 호텔 복귀
+19:00 석식 (현지 음식 체험)
+
+2025년 8월 3일 (토요일) 3일차  
+08:00 호텔 조식
+09:00 센토사 아일랜드 투어
+10:00 유니버설 스튜디오 싱가포르 입장
+12:00 원내 레스토랑에서 중식
+13:00~17:00 자유시간 (어트랙션 체험)
+17:30 케이블카 탑승
+18:30 호텔 복귀
+19:30 팀별 자유 저녁식사</textarea>
+    
+    <div>
+        <button onclick="testAIParsing()">🤖 AI 파싱 테스트</button>
+        <button onclick="clearResult()">🗑️ 결과 지우기</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        async function testAIParsing() {
+            const text = document.getElementById('scheduleText').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!text.trim()) {
+                resultDiv.innerHTML = '<div class="result error">텍스트를 입력해주세요!</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result">🔄 AI 파싱 중...</div>';
+            
+            try {
+                const response = await fetch('/api/parse-schedule-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    let html = '<div class="result success">';
+                    html += '<h3>✅ AI 파싱 성공!</h3>';
+                    html += '<p><strong>사용된 방법:</strong> ' + result.meta.parseMethod + '</p>';
+                    html += '<p><strong>스케줄 개수:</strong> ' + result.meta.scheduleCount + '</p>';
+                    html += '<h4>📅 파싱된 스케줄:</h4>';
+                    html += '<table border="1" style="width:100%; border-collapse: collapse;">';
+                    html += '<tr><th>날짜</th><th>시간</th><th>활동</th><th>장소</th><th>카테고리</th></tr>';
+                    
+                    result.data.schedules.forEach(schedule => {
+                        html += '<tr>';
+                        html += '<td>' + schedule.date + '</td>';
+                        html += '<td>' + schedule.time + '</td>';
+                        html += '<td>' + schedule.activity + '</td>';
+                        html += '<td>' + schedule.location + '</td>';
+                        html += '<td>' + schedule.category + '</td>';
+                        html += '</tr>';
+                    });
+                    
+                    html += '</table>';
+                    html += '<h4>📋 메타데이터:</h4>';
+                    html += '<p><strong>제목:</strong> ' + result.data.metadata.title + '</p>';
+                    html += '<p><strong>기간:</strong> ' + result.data.metadata.duration + '</p>';
+                    html += '<p><strong>목적지:</strong> ' + result.data.metadata.destination + '</p>';
+                    html += '</div>';
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="result error"><h3>❌ 파싱 실패</h3><pre>' + JSON.stringify(result, null, 2) + '</pre></div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="result error"><h3>🚨 오류 발생</h3><p>' + error.message + '</p></div>';
+            }
+        }
+        
+        function clearResult() {
+            document.getElementById('result').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

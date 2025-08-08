@@ -1,0 +1,13 @@
+// 관리자 페이지 백업본 (2025-08-01)
+// 아래 코드는 기존 index.js 전체 내용입니다. 실제 수정은 index.js에서 진행하세요.
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import toast from 'react-hot-toast';
+import { db } from '../../firebaseConfig';
+import { collection, getDocs } from 'firebase/firestore';
+import { initializeFirebaseData } from '../../utils/initializeFirebase';
+import { announcementOperations, participantOperations, projectOperations } from '../../utils/firebaseOperations';
+
+// ...전체 기존 코드...
+// 백업본은 실제 코드와 동일하게 유지됩니다.

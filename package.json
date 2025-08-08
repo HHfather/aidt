@@ -1,0 +1,63 @@
+{
+  "name": "overseas-training-platform",
+  "version": "1.0.0",
+  "description": "국외 연수 올인원 플랫폼",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "mcp-server": "node mcp-server/index.mjs"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "@google-ai/generativelanguage": "^2.0.0",
+    "@google/generative-ai": "^0.2.1",
+    "@googlemaps/js-api-loader": "^1.16.10",
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "@react-google-maps/api": "^2.20.7",
+    "@tailwindcss/typography": "^0.5.0",
+    "axios": "^1.11.0",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^3.0.0",
+    "docx": "^9.5.1",
+    "firebase": "^10.0.0",
+    "firebase-admin": "^12.0.0",
+    "formidable": "^2.1.1",
+    "hwp.js": "^0.0.3",
+    "jsonwebtoken": "^9.0.0",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.300.0",
+    "multer": "^1.4.5-lts.1",
+    "next": "14.2.31",
+    "node-fetch": "^3.3.2",
+    "node-hwp": "^0.1.0-alpha",
+    "officegen": "^0.6.5",
+    "pdf-parse": "^1.1.1",
+    "react": "^18.0.0",
+    "react-device-detect": "^2.2.3",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-dnd-touch-backend": "^16.0.1",
+    "react-dom": "^18.0.0",
+    "react-dropzone": "^14.2.0",
+    "react-hot-toast": "^2.4.0",
+    "react-icons": "^5.5.0",
+    "uuid": "^9.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.0"
+  }
+}
